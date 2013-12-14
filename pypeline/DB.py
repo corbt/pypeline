@@ -1,4 +1,5 @@
 import json
+from random import shuffle
 import plyvel
 
 class DB:
@@ -17,7 +18,7 @@ class DB:
                 if create_if_missing == False:
                     raise ValueError("Collection '{0}' does not exist".format(collection_name))
                 self.collections_set.put(collection_name, 'true')
-            self.collections_cache[collection_name] = Collection(self.collection_items_set, collection_name)
+            self.collections_cache[collection_name] = Collection(self, self.collection_items_set, collection_name)
         elif error_if_exists:
             raise ValueError("Collection '{0}' already exists".format(collection_name))
 
@@ -26,7 +27,7 @@ class DB:
     def collections(self):
         for name in self.collections_set.iterator(include_value=False):
             if name not in self.collections_cache:
-                self.collections_cache[name] = Collection(self.collection_items_set, name)
+                self.collections_cache[name] = Collection(self, self.collection_items_set, name)
 
         return [value for value in self.collections_cache.itervalues()]
 
@@ -49,12 +50,13 @@ class DB:
         self.db.open()
 
 class Collection:
-    def __init__(self, items_set, name):
+    def __init__(self, database, items_set, name):
         if '!!' in name:
             raise ValueError("Disallowed character sequence '!!' in collection name")
 
         self.name = name
         self.db = items_set.prefixed_db(name+b'!!')
+        self.parent_db = database
 
         self.refresh()
 
@@ -81,6 +83,21 @@ class Collection:
     def delete_all(self):
         for key in self.keys:
             self.db.delete(key)
+
+    def append_all(self, iterable):
+        for instance in iterable:
+            self.append(instance)
+
+    def map(self, function, new_collection=None, error_if_exists=False):
+        if new_collection in [None, self.name]:
+            for key in self.keys:
+                new_value = function(json.loads(self.db.get(key)))
+                self.db.put(key, json.dumps(new_value))
+        else:
+            new = self.parent_db.collection(new_collection, error_if_exists=error_if_exists)
+            for instance in self:
+                new.append(function(instance))
+
 
     def __iter__(self):
         return Iterator(self.db.iterator(include_key=False))

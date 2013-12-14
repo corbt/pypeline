@@ -66,13 +66,24 @@ def test_list_collections(db):
     assert str(loaded_collections) == "[pypeline.DB.Collection('test'), pypeline.DB.Collection('test1'), pypeline.DB.Collection('test2')]"
     assert [collection.name for collection in loaded_collections] == collections
 
-def test_collection_put(collection):
+def test_append(collection):
     collection.append([1,2])
     collection.append({'a': 'b'})
 
     assert collection[0] == [1,2]
 
     assert [c for c in collection] == [[1,2], {'a': 'b'}]
+
+def test_append_all(db):
+    c1 = db.collection('test1')
+    c2 = db.collection('test2')
+    c1.append(1)
+    c2.append(2)
+    c2.append(3)
+
+    c1.append_all(c2)
+    c1.append_all([4,5])
+    assert [instance for instance in c1] == [1,2,3,4,5]
 
 
 def test_collection_length(db):
@@ -184,3 +195,17 @@ def test_database_reloading(db_dir):
     test_db2 = DB(db_dir)
     assert test_db2.collection('test')[0] == 6
     assert len(test_db2.collection('test')) == 1
+
+def test_maps(db):
+    c1 = db.collection('c1')
+    c1.append_all([1,2,3])
+    c1.map(lambda x: x+1)
+    assert [instance for instance in c1] == [2,3,4]
+    c1.map(lambda x: x+1, 'c2')
+    assert [instance for instance in c1] == [2,3,4]
+    assert [instance for instance in db.collection('c2')] == [3,4,5]
+    with pytest.raises(ValueError):
+        c1.map(lambda x: x+1, 'c2', error_if_exists=True)
+
+def test_filters(db):
+    pass
