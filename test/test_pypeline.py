@@ -56,6 +56,9 @@ def test_collection_creation(db):
         db.collection('a !! collection') 
     with pytest.raises(ValueError):
         db.collection('nonexistant-collection', create_if_missing=False)
+    with pytest.raises(ValueError):
+        db.collection('test', error_if_exists=True)
+
 
 def test_list_collections(db):
     collections = [b'test', b'test1', b'test2']
@@ -146,17 +149,6 @@ def test_collection_refresh(db):
     assert c1[0] == [1,2]
     assert c2[0] == [1,2]
 
-def test_collection_shallow_copying(db):
-    c1 = db.collection('test')
-    c2 = c1
-
-    c1.append([1,2])
-
-    assert len(c1) == 1
-    assert len(c2) == 1
-    assert c1[0] == [1,2]
-    assert c2[0] == [1,2]
-
 def test_collection_delete(db):
     c1 = db.collection('test')
     c1.append(1)
@@ -169,6 +161,17 @@ def test_collection_delete(db):
     c2 = db.collection('test')
     assert len(c2) == 0
 
+def test_collection_shallow_copy(db):
+    c1 = db.collection('test')
+    c2 = c1
+
+    c1.append([1,2])
+
+    assert len(c1) == 1
+    assert len(c2) == 1
+    assert c1[0] == [1,2]
+    assert c2[0] == [1,2]
+
 def test_collection_deep_copy(db):
     c1 = db.collection('c1')
     c1.append(0)
@@ -178,9 +181,15 @@ def test_collection_deep_copy(db):
     assert [instance for instance in c1] == [0, 1]
     assert [instance for instance in c2] == [0, 2]
 
+    c1.append_all(range(3,10))
+    c3 = db.copy_collection('c1', 'c3', start=2, end=5)
+    assert c3 == db.collection('c3')
+    assert [instance for instance in c3] == [3,4,5]
+
     with pytest.raises(ValueError):
-        db.collection('c3')
-        db.copy_collection('c1', 'c3')
+        db.copy_collection('c1', 'c5', create_if_missing=False)
+    with pytest.raises(ValueError):
+        db.copy_collection('c1', 'c2', error_if_exists=True)
 
 def test_database_reloading(db_dir):
     test_db = DB(db_dir, create_if_missing=True)
@@ -206,6 +215,33 @@ def test_maps(db):
     assert [instance for instance in db.collection('c2')] == [3,4,5]
     with pytest.raises(ValueError):
         c1.map(lambda x: x+1, 'c2', error_if_exists=True)
+    with pytest.raises(ValueError):
+        c1.map(lambda x: x+1, 'c5', create_if_missing=False)
 
 def test_filters(db):
-    pass
+    c1 = db.collection('c1')
+    c1.append_all(range(1,10))
+    c1.filter(lambda x: x > 3)
+    assert [instance for instance in c1] == [4,5,6,7,8,9]
+    c1.filter(lambda x: x < 7, 'c2')
+    assert [instance for instance in db.collection('c2', create_if_missing=False)] == [4,5,6]
+
+    with pytest.raises(ValueError):
+        c1.filter(lambda x: x > 1, 'c2', error_if_exists=True)
+    with pytest.raises(ValueError):
+        c1.filter(lambda x: x > 1, 'c5', create_if_missing=False)
+
+def test_random_subset(db):
+    c1 = db.collection('c1')
+    c1.append_all(range(0,10))
+    c1.random_subset(8)
+    assert len(c1) == 8
+    c1.refresh()
+    assert len(c1) == 8
+    c2 = c1.random_subset(5, 'c2')
+    assert len(c2) == 5
+
+    with pytest.raises(ValueError):
+        c1.random_subset(5, 'c2', error_if_exists=True)
+    with pytest.raises(ValueError):
+        c1.random_subset(5, 'c5', create_if_missing=False)

@@ -1,5 +1,6 @@
 import json
-from random import shuffle
+import copy
+import random
 import plyvel
 
 class DB:
@@ -31,11 +32,11 @@ class DB:
 
         return [value for value in self.collections_cache.itervalues()]
 
-    def copy_collection(self, old_collection, new_collection):
+    def copy_collection(self, old_collection, new_collection, start=None, end=None, **kwargs):
         old = self.collection(old_collection, create_if_missing=False)
-        new = self.collection(new_collection, error_if_exists=True)
-        for entry in old:
-            new.append(entry)
+        new = self.collection(new_collection, **kwargs)
+        new.append_all(old.iterator(start, end))
+
         return new
 
     def delete(self, collection_name):
@@ -88,19 +89,67 @@ class Collection:
         for instance in iterable:
             self.append(instance)
 
-    def map(self, function, new_collection=None, error_if_exists=False):
+    def map(self, function, new_collection=None, **kwargs):
+        collection = None
         if new_collection in [None, self.name]:
+            collection = self
             for key in self.keys:
                 new_value = function(json.loads(self.db.get(key)))
                 self.db.put(key, json.dumps(new_value))
         else:
-            new = self.parent_db.collection(new_collection, error_if_exists=error_if_exists)
+            collection = self.parent_db.collection(new_collection, **kwargs)
             for instance in self:
-                new.append(function(instance))
+                collection.append(function(instance))
 
+        return collection
+
+    def filter(self, function, new_collection=None, **kwargs):
+        collection = None
+        if new_collection in [None, self.name]:
+            collection = self
+            new_keys = []
+            for key in self.keys:
+                if function(json.loads(self.db.get(key))):
+                    new_keys.append(key)
+                else:
+                    self.db.delete(key)
+            self.keys = new_keys
+
+        else:
+            collection = self.parent_db.collection(new_collection, **kwargs)
+            for instance in self:
+                if function(instance):
+                    collection.append(instance)
+
+        return collection
+
+    def random_subset(self, number, new_collection=None, **kwargs):
+        collection = None
+        if new_collection in [None, self.name]:
+            collection = self
+            random.shuffle(self.keys)
+            for key in self.keys[number:]:
+                self.db.delete(key)
+            self.keys = self.keys[:number]
+            list.sort(self.keys)
+
+        else:
+            new_keys = copy.copy(self.keys)
+            random.shuffle(new_keys)
+            new_keys = new_keys[:number]
+            list.sort(new_keys)
+            collection = self.parent_db.collection(new_collection, **kwargs)
+            for key in new_keys:
+                collection.append(json.loads(self.db.get(key)))
+
+        return collection
+
+
+    def iterator(self, start=None, end=None):
+        return Iterator(self, start, end)
 
     def __iter__(self):
-        return Iterator(self.db.iterator(include_key=False))
+        return self.iterator()
 
     def __getitem__(self, key):
         if isinstance(key, slice):
@@ -118,11 +167,12 @@ class Collection:
         return len(self.keys)
 
 class Iterator:
-    def __init__(self, base_iterator):
-        self.base_iterator = base_iterator
+    def __init__(self, collection, start=None, end=None):
+        self.key_iterator = iter(collection.keys[start:end])
+        self.collection = collection
 
     def __iter__(self):
         return self
 
     def next(self):
-        return json.loads(self.base_iterator.next())
+        return json.loads(self.collection.db.get(self.key_iterator.next()))
