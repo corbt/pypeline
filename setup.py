@@ -11,13 +11,13 @@ def read(fname):
 with open(os.path.join(os.path.dirname(__file__), 'pypeline', '_version.py')) as f:
     exec(f.read(), globals(), locals())
 
-long_description = open('README.md').read()
+
+long_description = ''
 if os.path.exists('README.txt'):
     long_description = open('README.txt').read()
 
-
 setup(
-    name = "pypeline_db",
+    name = "pypeline-db",
     version = __version__,
     author = "Kyle Corbitt",
     author_email = "kyle@corbt.com",
@@ -29,6 +29,13 @@ setup(
     long_description=long_description,
     classifiers=[
         "Development Status :: 3 - Alpha",
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python :: 2",
+        "Intended Audience :: Science/Research",
+        "Operating System :: POSIX",
         "Topic :: Utilities",
+        "Topic :: Database",
+        "Topic :: Scientific/Engineering",
     ],
+    install_requires=open('requirements.txt').readlines()
 )

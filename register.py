@@ -1,5 +1,6 @@
 import pypandoc
 import os
+import shutil
 
 # print doc.rst
 with open('README.txt','w') as f:
@@ -7,3 +8,4 @@ with open('README.txt','w') as f:
 
 os.system("python setup.py register")
 os.remove('README.txt')
+shutil.rmtree('pypeline_db.egg-info')
