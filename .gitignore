@@ -40,3 +40,6 @@ nosetests.xml
 
 # Virtualenv
 env/
+
+# Playing around
+tmp.py
