@@ -10,7 +10,7 @@ class DB:
         self.collection_items_set=self.db.prefixed_db(b'collection-items/')
         self.collections_cache = {}
 
-    def collection(self, collection_name, create_if_missing=True):
+    def collection(self, collection_name, create_if_missing=True, error_if_exists=False):
         if collection_name not in self.collections_cache:
             data = self.collections_set.get(collection_name)
             if data == None:
@@ -18,15 +18,24 @@ class DB:
                     raise ValueError("Collection '{0}' does not exist".format(collection_name))
                 self.collections_set.put(collection_name, 'true')
             self.collections_cache[collection_name] = Collection(self.collection_items_set, collection_name)
+        elif error_if_exists:
+            raise ValueError("Collection '{0}' already exists".format(collection_name))
 
         return self.collections_cache[collection_name]
 
     def collections(self):
-        collections = []
-        for name, value in self.collections_set:
-            collections.append(Collection(self.collection_items_set, name))
+        for name in self.collections_set.iterator(include_value=False):
+            if name not in self.collections_cache:
+                self.collections_cache[name] = Collection(self.collection_items_set, name)
 
-        return collections
+        return [value for value in self.collections_cache.itervalues()]
+
+    def copy_collection(self, old_collection, new_collection):
+        old = self.collection(old_collection, create_if_missing=False)
+        new = self.collection(new_collection, error_if_exists=True)
+        for entry in old:
+            new.append(entry)
+        return new
 
     def delete(self, collection_name):
         self.collection(collection_name).delete_all()

@@ -158,8 +158,18 @@ def test_collection_delete(db):
     c2 = db.collection('test')
     assert len(c2) == 0
 
+def test_collection_deep_copy(db):
+    c1 = db.collection('c1')
+    c1.append(0)
+    c2 = db.copy_collection('c1', 'c2')
+    c1.append(1)
+    c2.append(2)
+    assert [instance for instance in c1] == [0, 1]
+    assert [instance for instance in c2] == [0, 2]
 
-# def test_collection_
+    with pytest.raises(ValueError):
+        db.collection('c3')
+        db.copy_collection('c1', 'c3')
 
 def test_database_reloading(db_dir):
     test_db = DB(db_dir, create_if_missing=True)
