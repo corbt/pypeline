@@ -49,7 +49,7 @@ def test_db_creation(db_dir):
     assert isinstance(test_db, DB) == True
 
 def test_collection_creation(db):
-    collection = db.collection(b'test')
+    collection = db.collection('test')
 
     # Collection names cannot contain the reserved '!!' sequence
     with pytest.raises(ValueError):
@@ -63,13 +63,13 @@ def test_collection_reset(db):
     collection = db.collection('test')
 
 def test_list_collections(db):
-    collections = [b'test', b'test1', b'test2']
+    collections = ['test', 'test1', 'test2']
     for collection in collections:
         db.collection(collection)
 
     loaded_collections = db.collections()
-    assert str(loaded_collections) == "[pypeline.DB.Collection('test'), pypeline.DB.Collection('test1'), pypeline.DB.Collection('test2')]"
-    assert [collection.name for collection in loaded_collections] == collections
+    assert len(loaded_collections) == len(collections)
+    assert set([collection.name for collection in loaded_collections]) == set(collections)
 
 def test_append(collection):
     collection.append([1,2])
@@ -92,7 +92,7 @@ def test_append_all(db):
 
 
 def test_collection_length(db):
-    collection = db.collection(b'test')
+    collection = db.collection('test')
     collection.append([1,2,3])
     collection.append([4,5,6])
 

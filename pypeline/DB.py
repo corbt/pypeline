@@ -15,11 +15,11 @@ class DB:
 
     def collection(self, collection_name, reset_collection=False, create_if_missing=True, error_if_exists=False):
         if collection_name not in self.collections_cache:
-            data = self.collections_set.get(collection_name)
+            data = self.collections_set.get(collection_name.encode())
             if data == None:
                 if create_if_missing == False:
                     raise ValueError("Collection '{0}' does not exist".format(collection_name))
-                self.collections_set.put(collection_name, 'true')
+                self.collections_set.put(collection_name.encode(), b'true')
             self.collections_cache[collection_name] = Collection(self, self.collection_items_set, collection_name)
         elif error_if_exists:
             raise ValueError("Collection '{0}' already exists".format(collection_name))
@@ -31,10 +31,10 @@ class DB:
 
     def collections(self):
         for name in self.collections_set.iterator(include_value=False):
-            if name not in self.collections_cache:
-                self.collections_cache[name] = Collection(self, self.collection_items_set, name)
+            if name.decode() not in self.collections_cache:
+                self.collections_cache[name.decode()] = Collection(self, self.collection_items_set, name.decode())
 
-        return [value for value in self.collections_cache.itervalues()]
+        return [value for value in self.collections_cache.values()]
 
     def copy_collection(self, old_collection, new_collection, start=None, end=None, **kwargs):
         old = self.collection(old_collection, create_if_missing=False)
@@ -45,7 +45,7 @@ class DB:
 
     def delete(self, collection_name):
         self.collection(collection_name).delete_all()
-        self.collections_set.delete(collection_name)
+        self.collections_set.delete(collection_name.encode())
         del self.collections_cache[collection_name]
 
     def close(self):
@@ -60,15 +60,15 @@ class Collection:
             raise ValueError("Disallowed character sequence '!!' in collection name")
 
         self.name = name
-        self.db = items_set.prefixed_db(name+b'!!')
+        self.db = items_set.prefixed_db(name.encode()+b'!!')
         self.parent_db = database
 
         self.refresh()
 
     def append(self, record):
         self.last_index += 1
-        key = str(self.last_index)
-        self.db.put(key, json.dumps(record))
+        key = str(self.last_index).encode()
+        self.db.put(key, self.encode(record))
         self.keys.append(key)
 
     def refresh(self):
@@ -100,8 +100,8 @@ class Collection:
         if new_collection in [None, self.name]:
             collection = self
             for key in self.keys:
-                new_value = function(json.loads(self.db.get(key)))
-                self.db.put(key, json.dumps(new_value))
+                new_value = function(self.decode(self.db.get(key)))
+                self.db.put(key, self.encode(new_value))
         else:
             collection = self.parent_db.collection(new_collection, reset_collection=True, **kwargs)
             for instance in self:
@@ -115,7 +115,7 @@ class Collection:
             collection = self
             new_keys = []
             for key in self.keys:
-                if function(json.loads(self.db.get(key))):
+                if function(self.decode(self.db.get(key))):
                     new_keys.append(key)
                 else:
                     self.db.delete(key)
@@ -132,9 +132,9 @@ class Collection:
     def reduce(self, function, new_collection, initializer=None, **kwargs):
         reduced = None
         if initializer != None:
-            reduced = reduce(function, self, initializer)
+            reduced = reduce(function, self.iterator(), initializer)
         else:
-            reduced = reduce(function, self)
+            reduced = reduce(function, self.iterator())
 
         collection = None
         if new_collection in [None, self.name]:
@@ -144,7 +144,6 @@ class Collection:
         
         collection.append(reduced)
         return collection
-
 
     def random_subset(self, number, new_collection, **kwargs):
         collection = None
@@ -164,7 +163,7 @@ class Collection:
             collection = self.parent_db.collection(new_collection, **kwargs)
             collection.delete_all()
             for key in new_keys:
-                collection.append(json.loads(self.db.get(key)))
+                collection.append(self.decode(self.db.get(key)))
 
         return collection
 
@@ -172,17 +171,25 @@ class Collection:
     def iterator(self, start=None, end=None):
         return Iterator(self, start, end)
 
+    @staticmethod
+    def encode(obj):
+        return json.dumps(obj).encode()
+
+    @staticmethod
+    def decode(string):
+        return json.loads(string.decode())
+
     def __iter__(self):
         return self.iterator()
 
     def __getitem__(self, key):
         if isinstance(key, slice):
-            return [json.loads(self.db.get(key)) for key in self.keys[key]]
+            return [self.decode(self.db.get(key)) for key in self.keys[key]]
         else:
-            return json.loads(self.db.get(self.keys[key]))
+            return self.decode(self.db.get(self.keys[key]))
 
     def __setitem__(self, key, value):
-        self.db.put(self.keys[key], json.dumps(value))
+        self.db.put(self.keys[key], json.dumps(value).encode())
 
     def __repr__(self):
         return "%s(%r)" % (self.__class__, self.name)
@@ -199,4 +206,7 @@ class Iterator:
         return self
 
     def next(self):
-        return json.loads(self.collection.db.get(self.key_iterator.next()))
+        return json.loads(self.collection.db.get(self.key_iterator.next()).decode())
+
+    def __next__(self):
+        return json.loads(self.collection.db.get(self.key_iterator.__next__()).decode())
