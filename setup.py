@@ -37,5 +37,5 @@ setup(
         "Topic :: Database",
         "Topic :: Scientific/Engineering",
     ],
-    install_requires=open('requirements.txt').readlines()
+    install_requires=['plyvel']
 )
