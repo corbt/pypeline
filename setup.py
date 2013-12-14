@@ -17,7 +17,7 @@ if os.path.exists('README.txt'):
 
 
 setup(
-    name = "pypeline",
+    name = "pypeline_db",
     version = __version__,
     author = "Kyle Corbitt",
     author_email = "kyle@corbt.com",
