@@ -1,10 +1,13 @@
 import os
 import tempfile
 import shutil
+import plyvel, json
 
 import pytest
 
 from pypeline import DB
+from pypeline._version import schema_version
+
 
 @pytest.fixture
 def db_dir(request):
@@ -47,6 +50,13 @@ def test_db_creation(db_dir):
     test_db = DB(db_dir, create_if_missing=True)
     assert os.path.isdir(db_dir) == True
     assert isinstance(test_db, DB) == True
+
+def test_db_schema(db_dir):
+    test_db = DB(db_dir, create_if_missing=True)
+    test_db.close()
+
+    test_levelDB = plyvel.DB(db_dir)
+    assert json.loads(test_levelDB.get(b'pypeline-schema-version').decode()) == schema_version
 
 def test_collection_creation(db):
     collection = db.collection('test')

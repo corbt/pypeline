@@ -3,15 +3,21 @@ import copy
 import random
 from functools import reduce
 import plyvel
+from ._version import schema_version
 
 class DB:
-    def __init__(self, database_path, create_if_missing=False):
-        self.db=plyvel.DB(database_path, 
-            create_if_missing=create_if_missing)
+    def __init__(self, database_path, **kwargs):
+        self.db=plyvel.DB(database_path, **kwargs)
 
         self.collections_set=self.db.prefixed_db(b'collections/')
         self.collection_items_set=self.db.prefixed_db(b'collection-items/')
         self.collections_cache = {}
+
+        try:
+            self.schema_version = decode(self.db.get(b'pypeline-schema-version'))
+        except:
+            self.schema_version = schema_version
+            self.db.put(b'pypeline-schema-version', encode(schema_version))
 
     def collection(self, collection_name, reset_collection=False, create_if_missing=True, error_if_exists=False):
         if collection_name not in self.collections_cache:
@@ -68,7 +74,7 @@ class Collection:
     def append(self, record):
         self.last_index += 1
         key = str(self.last_index).encode()
-        self.db.put(key, self.encode(record))
+        self.db.put(key, encode(record))
         self.keys.append(key)
 
     def refresh(self):
@@ -100,8 +106,8 @@ class Collection:
         if new_collection in [None, self.name]:
             collection = self
             for key in self.keys:
-                new_value = function(self.decode(self.db.get(key)))
-                self.db.put(key, self.encode(new_value))
+                new_value = function(decode(self.db.get(key)))
+                self.db.put(key, encode(new_value))
         else:
             collection = self.parent_db.collection(new_collection, reset_collection=True, **kwargs)
             for instance in self:
@@ -115,7 +121,7 @@ class Collection:
             collection = self
             new_keys = []
             for key in self.keys:
-                if function(self.decode(self.db.get(key))):
+                if function(decode(self.db.get(key))):
                     new_keys.append(key)
                 else:
                     self.db.delete(key)
@@ -163,7 +169,7 @@ class Collection:
             collection = self.parent_db.collection(new_collection, **kwargs)
             collection.delete_all()
             for key in new_keys:
-                collection.append(self.decode(self.db.get(key)))
+                collection.append(decode(self.db.get(key)))
 
         return collection
 
@@ -171,25 +177,17 @@ class Collection:
     def iterator(self, start=None, end=None):
         return Iterator(self, start, end)
 
-    @staticmethod
-    def encode(obj):
-        return json.dumps(obj).encode()
-
-    @staticmethod
-    def decode(string):
-        return json.loads(string.decode())
-
     def __iter__(self):
         return self.iterator()
 
     def __getitem__(self, key):
         if isinstance(key, slice):
-            return [self.decode(self.db.get(key)) for key in self.keys[key]]
+            return [decode(self.db.get(key)) for key in self.keys[key]]
         else:
-            return self.decode(self.db.get(self.keys[key]))
+            return decode(self.db.get(self.keys[key]))
 
     def __setitem__(self, key, value):
-        self.db.put(self.keys[key], json.dumps(value).encode())
+        self.db.put(self.keys[key], encode(value))
 
     def __repr__(self):
         return "%s(%r)" % (self.__class__, self.name)
@@ -206,7 +204,13 @@ class Iterator:
         return self
 
     def next(self):
-        return json.loads(self.collection.db.get(self.key_iterator.next()).decode())
+        return decode(self.collection.db.get(self.key_iterator.next()))
 
     def __next__(self):
-        return json.loads(self.collection.db.get(self.key_iterator.__next__()).decode())
+        return decode(self.collection.db.get(self.key_iterator.__next__()))
+
+def encode(obj):
+    return json.dumps(obj).encode()
+
+def decode(string):
+    return json.loads(string.decode())

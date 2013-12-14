@@ -6,3 +6,4 @@ Pypeline version module.
 # from setup.py file when the module has not yet been compiled!
 
 __version__ = '0.1.4'
+schema_version = '1'
