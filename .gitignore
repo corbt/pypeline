@@ -39,7 +39,7 @@ nosetests.xml
 *.sublime-*
 
 # Virtualenv
-env/
+env*/
 
 # Playing around
 tmp.py

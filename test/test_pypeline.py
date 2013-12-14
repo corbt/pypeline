@@ -59,6 +59,8 @@ def test_collection_creation(db):
     with pytest.raises(ValueError):
         db.collection('test', error_if_exists=True)
 
+def test_collection_reset(db):
+    collection = db.collection('test')
 
 def test_list_collections(db):
     collections = [b'test', b'test1', b'test2']
@@ -208,7 +210,7 @@ def test_database_reloading(db_dir):
 def test_maps(db):
     c1 = db.collection('c1')
     c1.append_all([1,2,3])
-    c1.map(lambda x: x+1)
+    c1.map(lambda x: x+1, None)
     assert [instance for instance in c1] == [2,3,4]
     c1.map(lambda x: x+1, 'c2')
     assert [instance for instance in c1] == [2,3,4]
@@ -221,7 +223,7 @@ def test_maps(db):
 def test_filters(db):
     c1 = db.collection('c1')
     c1.append_all(range(1,10))
-    c1.filter(lambda x: x > 3)
+    c1.filter(lambda x: x > 3, None)
     assert [instance for instance in c1] == [4,5,6,7,8,9]
     c1.filter(lambda x: x < 7, 'c2')
     assert [instance for instance in db.collection('c2', create_if_missing=False)] == [4,5,6]
@@ -231,10 +233,26 @@ def test_filters(db):
     with pytest.raises(ValueError):
         c1.filter(lambda x: x > 1, 'c5', create_if_missing=False)
 
+def test_reduce(db):
+    c1 = db.collection('c1')
+    c1.append_all([1,2,3])
+    c2 = c1.reduce(lambda x,y: x+y, 'c2')
+    assert len(c2) == 1
+    assert c2[0] == 6
+
+    c1.reduce(lambda x,y: x+y, 'c2', initializer=5)
+    assert len(c2) == 1
+    assert c2[0] == 11
+    with pytest.raises(ValueError):
+        c1.reduce(lambda x,y: x+y, 'c2', error_if_exists=True)
+    with pytest.raises(ValueError):
+        c1.reduce(lambda x,y: x+y, 'c5', create_if_missing=False)
+
+
 def test_random_subset(db):
     c1 = db.collection('c1')
     c1.append_all(range(0,10))
-    c1.random_subset(8)
+    c1.random_subset(8, None)
     assert len(c1) == 8
     c1.refresh()
     assert len(c1) == 8

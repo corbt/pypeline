@@ -1,6 +1,7 @@
 import json
 import copy
 import random
+from functools import reduce
 import plyvel
 
 class DB:
@@ -12,7 +13,7 @@ class DB:
         self.collection_items_set=self.db.prefixed_db(b'collection-items/')
         self.collections_cache = {}
 
-    def collection(self, collection_name, create_if_missing=True, error_if_exists=False):
+    def collection(self, collection_name, reset_collection=False, create_if_missing=True, error_if_exists=False):
         if collection_name not in self.collections_cache:
             data = self.collections_set.get(collection_name)
             if data == None:
@@ -22,6 +23,9 @@ class DB:
             self.collections_cache[collection_name] = Collection(self, self.collection_items_set, collection_name)
         elif error_if_exists:
             raise ValueError("Collection '{0}' already exists".format(collection_name))
+
+        if reset_collection:
+            self.collections_cache[collection_name].delete_all()
 
         return self.collections_cache[collection_name]
 
@@ -34,7 +38,7 @@ class DB:
 
     def copy_collection(self, old_collection, new_collection, start=None, end=None, **kwargs):
         old = self.collection(old_collection, create_if_missing=False)
-        new = self.collection(new_collection, **kwargs)
+        new = self.collection(new_collection, reset_collection=True, **kwargs)
         new.append_all(old.iterator(start, end))
 
         return new
@@ -84,12 +88,14 @@ class Collection:
     def delete_all(self):
         for key in self.keys:
             self.db.delete(key)
+        self.keys = []
+        self.last_index = 0
 
     def append_all(self, iterable):
         for instance in iterable:
             self.append(instance)
 
-    def map(self, function, new_collection=None, **kwargs):
+    def map(self, function, new_collection, **kwargs):
         collection = None
         if new_collection in [None, self.name]:
             collection = self
@@ -97,13 +103,13 @@ class Collection:
                 new_value = function(json.loads(self.db.get(key)))
                 self.db.put(key, json.dumps(new_value))
         else:
-            collection = self.parent_db.collection(new_collection, **kwargs)
+            collection = self.parent_db.collection(new_collection, reset_collection=True, **kwargs)
             for instance in self:
                 collection.append(function(instance))
 
         return collection
 
-    def filter(self, function, new_collection=None, **kwargs):
+    def filter(self, function, new_collection, **kwargs):
         collection = None
         if new_collection in [None, self.name]:
             collection = self
@@ -116,14 +122,31 @@ class Collection:
             self.keys = new_keys
 
         else:
-            collection = self.parent_db.collection(new_collection, **kwargs)
+            collection = self.parent_db.collection(new_collection, reset_collection=True, **kwargs)
             for instance in self:
                 if function(instance):
                     collection.append(instance)
 
         return collection
 
-    def random_subset(self, number, new_collection=None, **kwargs):
+    def reduce(self, function, new_collection, initializer=None, **kwargs):
+        reduced = None
+        if initializer != None:
+            reduced = reduce(function, self, initializer)
+        else:
+            reduced = reduce(function, self)
+
+        collection = None
+        if new_collection in [None, self.name]:
+            collection = self
+        else:
+            collection = self.parent_db.collection(new_collection, reset_collection=True, **kwargs)
+        
+        collection.append(reduced)
+        return collection
+
+
+    def random_subset(self, number, new_collection, **kwargs):
         collection = None
         if new_collection in [None, self.name]:
             collection = self
@@ -139,6 +162,7 @@ class Collection:
             new_keys = new_keys[:number]
             list.sort(new_keys)
             collection = self.parent_db.collection(new_collection, **kwargs)
+            collection.delete_all()
             for key in new_keys:
                 collection.append(json.loads(self.db.get(key)))
 
