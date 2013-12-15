@@ -77,9 +77,7 @@ def test_list_collections(db):
     for collection in collections:
         db.collection(collection)
 
-    loaded_collections = db.collections()
-    assert len(loaded_collections) == len(collections)
-    assert set([collection.name for collection in loaded_collections]) == set(collections)
+    assert db.collections() == collections
 
 def test_append(collection):
     collection.append([1,2])

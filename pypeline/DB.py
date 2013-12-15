@@ -62,13 +62,10 @@ class DB:
 
     def collections(self):
         """
-        Returns a list of collections contained in the database.
+        Returns a list of keys of collections contained in the database.
         """
-        for name in self.collections_set.iterator(include_value=False):
-            if name.decode() not in self.collections_cache:
-                self.collections_cache[name.decode()] = Collection(self, self.collection_items_set, name.decode())
-
-        return [value for value in self.collections_cache.values()]
+        
+        return [name.decode() for name in self.collections_set.iterator(include_value=False)]
 
     def copy_collection(self, old_collection, new_collection, start=None, end=None, **kwargs):
         """
