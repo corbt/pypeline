@@ -6,7 +6,19 @@ import plyvel
 from ._version import schema_version
 
 class DB:
-    def __init__(self, database_path, **kwargs):
+    """
+    The pypeline LevelDB database.  This class contains collections and
+    provides some system-level organization.
+
+    All arguments beyond the database path are passed directly to the
+    underlying plyvel DB constructor. More details can be found at
+    https://plyvel.readthedocs.org/en/latest/api.html#DB 
+
+    Arguments:
+    `database_path` -- The path to the folder for database storage
+    """
+
+    def __init__(self, database_path, **kwargs):         
         self.db=plyvel.DB(database_path, **kwargs)
 
         self.collections_set=self.db.prefixed_db(b'collections/')
@@ -19,7 +31,20 @@ class DB:
             self.schema_version = schema_version
             self.db.put(b'pypeline-schema-version', encode(schema_version))
 
-    def collection(self, collection_name, reset_collection=False, create_if_missing=True, error_if_exists=False):
+    def collection(self, collection_name, reset_collection=False, 
+        create_if_missing=True, error_if_exists=False):
+        """
+        Returns the collection stored at `collection_name`, or creates it if it doesn't exist.
+
+        | Arguments:
+        | ``collection_name`` -- the name of the collection to return
+
+        | Keyword arguments:
+        | ``reset_collection`` -- when True any existant data in the collection is deleted before it is returned
+        | ``create_if_missing`` -- when False a ValueError is raised if the collection doesn't exist
+        | ``error_if_exists`` -- When True a ValueError is raised if the collection already exists 
+        """
+
         if collection_name not in self.collections_cache:
             data = self.collections_set.get(collection_name.encode())
             if data == None:
@@ -36,6 +61,9 @@ class DB:
         return self.collections_cache[collection_name]
 
     def collections(self):
+        """
+        Returns a list of collections contained in the database.
+        """
         for name in self.collections_set.iterator(include_value=False):
             if name.decode() not in self.collections_cache:
                 self.collections_cache[name.decode()] = Collection(self, self.collection_items_set, name.decode())
@@ -43,6 +71,19 @@ class DB:
         return [value for value in self.collections_cache.values()]
 
     def copy_collection(self, old_collection, new_collection, start=None, end=None, **kwargs):
+        """
+        Copies all instances in the old_collection into the new_collection
+
+        | Arguments:
+        | ``old_collection`` -- The string name of the old collection
+        | ``new_collection`` -- The string name of the new collection
+
+        | Keyword arguments:
+        | ``start`` -- (Optional) The index to begin copying from old_collection
+        | ``end`` -- (Optional) The index to end copying from old_collection
+        | ``create_if_missing`` -- when False a ValueError is raised if the new collection doesn't exist (default: True)
+        | ``error_if_exists`` -- When True a ValueError is raised if the collection already exists (default: False)
+        """
         old = self.collection(old_collection, create_if_missing=False)
         new = self.collection(new_collection, reset_collection=True, **kwargs)
         new.append_all(old.iterator(start, end))
@@ -50,17 +91,31 @@ class DB:
         return new
 
     def delete(self, collection_name):
+        """
+        Deletes a collection.
+
+        | Arguments:
+        | ``collection_name`` -- the name of the collection to delete
+        """
+
         self.collection(collection_name).delete_all()
         self.collections_set.delete(collection_name.encode())
         del self.collections_cache[collection_name]
 
     def close(self):
+        """Closes the database."""
         self.db.close()
 
     def open(self):
+        """Opens the database."""
         self.db.open()
 
 class Collection:
+    """
+    A collection of records stored in a database
+
+    This class should never be instantiated directly.  Use the ``DB.collection()`` method instead
+    """
     def __init__(self, database, items_set, name):
         if '!!' in name:
             raise ValueError("Disallowed character sequence '!!' in collection name")
@@ -72,12 +127,21 @@ class Collection:
         self.refresh()
 
     def append(self, record):
+        """
+        Appends a single record.
+
+        | Arguments:
+        | ``record`` -- Any JSON-serializable python object (dicts, lists, ints, strings, etc.)
+        """
         self.last_index += 1
         key = str(self.last_index).encode()
         self.db.put(key, encode(record))
         self.keys.append(key)
 
     def refresh(self):
+        """
+        Reloads the collection from the database.
+        """
         self.keys = []
         for key in self.db.iterator(include_value=False):
             self.keys.append(key)
@@ -88,20 +152,43 @@ class Collection:
             self.last_index = 0
 
     def delete(self, index):
+        """
+        Deletes an item from the collection.
+
+        | Arguments:
+        | ``index`` -- Index of the item to be deleted.
+        """
         self.db.delete(self.keys[index])
         self.keys.pop(index)
 
     def delete_all(self):
+        """Deletes all items in the collection"""
+
         for key in self.keys:
             self.db.delete(key)
         self.keys = []
         self.last_index = 0
 
     def append_all(self, iterable):
+        """Appends every item in the iterable to the collection"""
+
         for instance in iterable:
             self.append(instance)
 
     def map(self, function, new_collection, **kwargs):
+        """
+        Maps a collection to a new collection with a provided function.
+
+        | Arguments:
+        | ``function`` -- The function used for mapping.
+        | ``new_collection`` -- The name of the collection to insert the new values into.  
+            Any existing values will be deleted.
+            If ``None``, values are mapped to the same collection.
+
+        | Keyword arguments:
+        | ``create_if_missing`` -- when False a ValueError is raised if the new collection doesn't exist
+        | ``error_if_exists`` -- When True a ValueError is raised if the new collection already exists 
+        """
         collection = None
         if new_collection in [None, self.name]:
             collection = self
@@ -116,6 +203,19 @@ class Collection:
         return collection
 
     def filter(self, function, new_collection, **kwargs):
+        """
+        Filters a collection into a new collection with a given function.
+
+        | Arguments:
+        | ``function`` -- The function used for filtering.
+        | ``new_collection`` -- The name of the collection to insert the new values into.  
+            Any existing values will be deleted.
+            If ``None``, values are filtered in the same collection.
+
+        | Keyword arguments:
+        | ``create_if_missing`` -- when False a ValueError is raised if the new collection doesn't exist
+        | ``error_if_exists`` -- When True a ValueError is raised if the new collection already exists 
+        """
         collection = None
         if new_collection in [None, self.name]:
             collection = self
@@ -136,6 +236,19 @@ class Collection:
         return collection
 
     def reduce(self, function, new_collection, initializer=None, **kwargs):
+        """
+        Reduces a collection into a new collection with a given function.
+
+        | Arguments:
+        | ``function`` -- The function used for reducing.
+        | ``new_collection`` -- The name of the collection to insert the new value into.  
+            Any existing values will be deleted.
+            If ``None``, the current collection is replaced with the reduction output.
+
+        | Keyword arguments:
+        | ``create_if_missing`` -- when False a ValueError is raised if the new collection doesn't exist
+        | ``error_if_exists`` -- When True a ValueError is raised if the new collection already exists 
+        """
         reduced = None
         if initializer != None:
             reduced = reduce(function, self.iterator(), initializer)
@@ -152,6 +265,18 @@ class Collection:
         return collection
 
     def random_subset(self, number, new_collection, **kwargs):
+        """
+        Produces a random subset of a given collection and inserts it into a new collection.
+
+        | Arguments:
+        | ``new_collection`` -- The name of the collection to insert the new values into.  
+            Any existing values will be deleted.
+            If `None`, the subset is stored to the current collection.
+
+        | Keyword arguments:
+        | ``create_if_missing`` -- when False a ValueError is raised if the new collection doesn't exist
+        | ``error_if_exists`` -- When True a ValueError is raised if the new collection already exists 
+        """
         collection = None
         if new_collection in [None, self.name]:
             collection = self
@@ -175,6 +300,8 @@ class Collection:
 
 
     def iterator(self, start=None, end=None):
+        """Returns a collection iterator"""
+
         return Iterator(self, start, end)
 
     def __iter__(self):
