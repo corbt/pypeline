@@ -8,10 +8,9 @@ It has a friendly and easy-to-master API backed by the power of `LevelDB
 large to fit in RAM without sacrificing data access performance.
 
 Pypeline is great for:
-
-* Exploring data without eating all your RAM
-* Transforming data with maps, filters and reductions
-* Stopping you from losing or overwriting your data (unless you explicitly ask it to)
+ * Exploring data without eating all your RAM
+ * Transforming data with maps, filters and reductions
+ * Stopping you from losing or overwriting your data (unless you explicitly ask it to)
 
 It's also super easy to export a dataset from Pypeline to Pandas for further
 analysis.
