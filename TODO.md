@@ -1,6 +1,6 @@
 Project Roadmap
 ===============
 
-* Create documentation
-* Real-world testing
+* Further testing
 * Export to pandas
+* Example usage
