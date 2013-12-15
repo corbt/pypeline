@@ -11,8 +11,6 @@ LevelDB database on disk, which is stored as a directory.  A *collection* is a
 group of documents in a database that are grouped together and can be worked
 with collectively. Ready? Let's get started.
 
-::
-
     >>> import pypeline
     >>> db = pypeline.DB("test_database.pypeline", create_if_missing=True)
     >>> collection = db.collection('collection_1')
@@ -23,8 +21,6 @@ This is pretty straightforward stuff.  By calling pypeline.DB we create a new
 database to store our collections in (if you're opening a preexisting database
 the ``create_if_missing`` argument is unnecessary).  We then create a new
 collection that we can refer to as 'collection_1'.
-
-::
 
     >>> db.collection('collection_2')
     pypeline.DB.Collection('collection_2')
@@ -39,8 +35,6 @@ Dealing with Collections
 ========================
 
 Of course, a collection is no good to us empty, so let's learn how to add something to it.
-
-::
 
     >>> for x in range(5):
     ...     collection.append(x)
@@ -64,8 +58,6 @@ good way of combining multiple collections into a single one).
 Secondly, Pypeline collections are `iterable`.  That means all the familiar
 syntax like ``for x in collection`` will work just like you would expect.
 
-::
-
     >>> collection[0]
     0
     >>> collection.delete(0)
@@ -81,8 +73,6 @@ request will be loaded into memory.  Objects in a collection can also be
 deleted by index.
 
 Collections can be copied:
-
-::
 
     >>> c3 = db.copy_collection('collection_1', 'collection_3')
     >>> c3[:]
@@ -102,7 +92,6 @@ Reloading from Disk
 
 One of the advantages of Pypeline is that you don't have to worry about data loss -- everything you write to it is immediately backed up to disk.  Let's reload our database just to test it out.
 
-::
     >>> db.close()
     >>> del db, collection, c3
     >>> db = pypeline.DB("test_database.pypeline")
