@@ -31,6 +31,7 @@ setup(
         "Development Status :: 3 - Alpha",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 2",
+        "Programming Language :: Python :: 3",
         "Intended Audience :: Science/Research",
         "Operating System :: POSIX",
         "Topic :: Utilities",

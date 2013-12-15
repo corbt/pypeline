@@ -1,6 +1,6 @@
 import os
 import shutil
-import pandoc
+import pypandoc
 
 def register():
     # print doc.rst
