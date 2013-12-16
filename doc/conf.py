@@ -46,7 +46,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Pypeline'
+project = u'Pypeline DB'
 copyright = u'2013, Kyle Corbitt'
 
 # The version info for the project you're documenting, acts as replacement for

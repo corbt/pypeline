@@ -1,8 +1,8 @@
-========
-Pypeline
-========
+===========
+Pypeline DB
+===========
 
-Pypeline is designed to simplify the creation and management of datasets.
+Pypeline DB is designed to simplify the creation and management of datasets.
 It has a friendly and easy-to-master API backed by the power of `LevelDB
 <https://code.google.com/p/leveldb/>`_.  This allows it to manage datasets too
 large to fit in RAM without sacrificing data access performance.

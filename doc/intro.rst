@@ -5,7 +5,7 @@ Quick Start
 The Basics
 ==========
 
-You only have to understand two concepts to get started with Pypeline:
+You only have to understand two concepts to get started with Pypeline DB:
 databases and collections.  A *Database* is just a simple wrapper for a
 LevelDB database on disk, which is stored as a directory.  A *collection* is a
 group of documents in a database that are grouped together and can be worked
