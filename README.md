@@ -12,7 +12,7 @@ Pypeline is great for:
 * Transforming data with maps, filters and reductions
 * Stopping you from losing or overwriting your data (unless you explicitly ask it to)
 
-It's also super easy to export a dataset from Pypeline to Pandas for further
+It's also easy to export a dataset from Pypeline to Pandas for further
 analysis.
 
 Links
