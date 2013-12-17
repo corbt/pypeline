@@ -20,3 +20,4 @@ Links
 * [Docs](http://pypeline.readthedocs.org/en/latest/)
 * [PyPi Package](https://pypi.python.org/pypi/pypeline-db/)
 * [Source](https://github.com/kcorbitt/pypeline)
+* [Blog Post](http://corbt.com/blog/introducing-pypeline-db.html)
