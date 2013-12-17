@@ -150,3 +150,42 @@ example) the current collection will be overwritten.
 With this introduction you're now ready to get started using Pypeline!  If you
 have further questions, be sure to check the :doc:`API` docs or open an issue on the
 project `Github <https://github.com/kcorbitt/pypeline>`_.
+
+Importing into Pandas
+=====================
+
+`Pandas <http://pandas.pydata.org/>`_ is an invaluable tool for data analysis,
+and exporting data from Pypeline to Pandas is easy.  Because Pypeline makes no
+assumptions about the format of your data, this requires a bit of manual glue
+to get right.  An easy approach that does not require loading all the data into RAM is creating a temporary CSV file to act as a go-between.
+
+    >>> import pandas, os, tempfile, csv
+    >>> c8 = db.collection('collection_8')
+    >>> csv_file = tempfile.NamedTemporaryFile(delete=False)
+    >>> for x in range(5):
+    ...     c8.append([x, x+1])
+    >>> writer = csv.DictWriter(csv_file, fieldnames=['first', 'second'])
+    >>> writer.writeheader()
+    >>> for record in c8:
+    ...     writer.writerow({'first': record[0], 'second': record[1]})
+    >>> csv_file.close()
+    >>> csv_path = csv_file.name
+    >>> dataframe = pandas.io.parsers.read_csv(csv_path)
+    >>> print dataframe
+       first  second
+    0      0       1
+    1      1       2
+    2      2       3
+    3      3       4
+    4      4       5
+    >>> os.remove(csv_path)
+
+This snippet creates a temporary file that we'll use to store our data as CSV,
+a format that pandas can import from.  We then create our "data," which is
+just a silly example in this case, and insert it into the collection.  Using
+Python's built-in CSV utilities we then open the file and save our collection
+to the CSV file row by row.  Finally, we close the file, import it into
+pandas, and delete it.
+
+The dataframe now contains all the data from our collection and is ready for further analysis.
+
