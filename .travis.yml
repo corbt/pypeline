@@ -22,3 +22,6 @@ before_install:
 install: "pip install -r requirements-test.txt"
 
 script: "python -m pytest test/test_pypeline.py"
+
+notifications:
+  email: false
