@@ -1,3 +1,5 @@
+This project has been closed, and my development effort will be transitioned to [dat](https://github.com/maxogden/dat). Dat has a similar mission, is also built on levelDB, and supports many features that pypeline doesn't have.
+
 Pypeline DB
 ===========
 
